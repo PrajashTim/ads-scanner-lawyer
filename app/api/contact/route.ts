@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-type Lead = { firm?: string; landingUrl?: string };
+type Lead = { firm?: string; landingUrl?: string; websiteUrl?: string };
 type ContactResult = { first_name?: string; email?: string; note?: string };
 
 const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -25,7 +25,7 @@ function publicEmails(html: string) {
 export async function POST(request: Request) {
   try {
     const { lead } = await request.json() as { lead?: Lead };
-    const landingUrl = lead?.landingUrl?.trim();
+    const landingUrl = (lead?.websiteUrl || lead?.landingUrl)?.trim();
     if (!landingUrl || !isSafePublicUrl(landingUrl)) return NextResponse.json({ error: "This ad did not include a public website URL to check." }, { status: 400 });
 
     // This network request and the optional model call happen only after the
