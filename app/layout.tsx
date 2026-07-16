@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lawyer Ad Signal",
   description: "Find active lawyer advertisers and turn real ad signals into specific YouTube opportunity emails.",
+  metadataBase: new URL("https://lawyer-ad-signal.blackmamba7193.chatgpt.site"),
+  openGraph: { title: "Lawyer Ad Signal", description: "Turn active lawyer ads into better cold emails.", images: ["/og.png"] },
+  twitter: { card: "summary_large_image", title: "Lawyer Ad Signal", description: "Turn active lawyer ads into better cold emails.", images: ["/og.png"] },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
