@@ -37,7 +37,9 @@ export async function POST(request: Request) {
     if (!token) return NextResponse.json({ mode: "sample", leads: sampleLeads(city, state, keyword), notice: "Sample mode is on. Add an Apify API token to make this button run live active-ad scans." });
     const searchTerms = `${city} ${state} ${keyword || "lawyer"} attorney law firm`;
     const url = `https://api.apify.com/v2/acts/dltik~facebook-ads-scraper/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=120`;
-    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms, country: "US", activeStatus: "active", mediaType: "all", maxResults: 60, enrichAds: true, analyzeAds: false, transcribeVideos: false, useResidentialProxy: false }) });
+    // This route is called only by an explicit scan. Keep the paid request small:
+    // no enrichment, transcription, proxy upgrade, or background processing.
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms, country: "US", activeStatus: "active", mediaType: "all", maxResults: 25, enrichAds: false, analyzeAds: false, transcribeVideos: false, useResidentialProxy: false }) });
     if (!response.ok) throw new Error(`Ad provider returned ${response.status}.`); const raw = await response.json() as RawAd[]; const leads = normalize(Array.isArray(raw) ? raw : [], city, state, keyword);
     return NextResponse.json({ mode: "live", leads, notice: leads.length ? "Active commercial ads found. City confidence is based on ad text and the search query, not private targeting data." : "No matching active ads were returned. Try a broader practice-area keyword." });
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "The scan failed." }, { status: 500 }); }

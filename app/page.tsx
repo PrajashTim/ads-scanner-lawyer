@@ -89,7 +89,7 @@ export default function Home() {
         <label className="keywordField"><span>Practice area or keyword</span><input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="personal injury" /></label>
         <button className="scanButton" disabled={loading}>{loading ? "Scanning…" : "Scan active ads"}<b>→</b></button>
       </form>
-      <div className="truthNote"><b>What this proves:</b> the firm has an active ad matching this market query. It does not reveal exact city targeting or inactive commercial ads.</div>
+      <div className="truthNote"><b>What this proves:</b> the firm has an active ad matching this market query. It does not reveal exact city targeting or inactive commercial ads. <b>Spend control:</b> this runs only when you press Scan, returns up to 25 records, and has no background scans.</div>
     </section>
 
     {(notice || leads.length > 0) && <section className="workspace shell">
@@ -104,9 +104,10 @@ export default function Home() {
         <aside className="detailPanel">{selected ? <>
           <div className="detailTitle"><div><span>Selected signal</span><h3>{selected.firm}</h3></div><a href={selected.libraryUrl} target="_blank" rel="noreferrer">Verify ad ↗</a></div>
           <div className="stats"><div><b>{selected.adCount}</b><span>active creatives</span></div><div><b>{daysLabel(selected.daysLive)}</b><span>oldest active ad</span></div><div><b>{selected.platforms.join(" + ")}</b><span>placements seen</span></div></div>
-          <div className="evidence"><span>Ad evidence</span><p>{selected.adCopy}</p></div>
-          <label className="nameField"><span>Contact first name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="John" /></label>
-          <button className="generateButton" onClick={generateEmail} disabled={!firstName.trim() || generating}>{generating ? "Writing…" : "Generate first email"}</button>
+          <div className="evidence"><span>Ad evidence</span><p>{selected.adCopy}</p>{selected.landingUrl && <a href={selected.landingUrl} target="_blank" rel="noreferrer">Open landing page →</a>}</div>
+          <label className="nameField"><span>Verified contact first name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} placeholder="John" /></label>
+          <p className="truthNote"><b>Contact check:</b> enter a verified contact from Sheet3 or your own source. The AI writes from ad evidence; it does not invent or scrape email addresses.</p>
+          <button className="generateButton" onClick={generateEmail} disabled={!firstName.trim() || generating}>{generating ? "Writing…" : "Generate email for this account"}</button>
           {generated && <div className="generated"><div className="generatedHead"><span>Ready to review</span><button onClick={() => navigator.clipboard.writeText(`Subject: ${generated.subject}\n\n${generated.body}`)}>Copy email</button></div><p className="subject"><b>Subject:</b> {generated.subject}</p><p className="emailBody">{generated.body}</p><details><summary>View the rough one-page brief</summary><pre>{generated.brief}</pre></details></div>}
         </> : <div className="empty">Run a scan, then choose a firm.</div>}</aside>
       </div>
