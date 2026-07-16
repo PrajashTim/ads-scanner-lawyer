@@ -33,7 +33,20 @@ export default function Home() {
 
   async function runScan(event: FormEvent) {
     event.preventDefault(); setLoading(true); setElapsed(0); setNotice(""); setGenerated(null); setContact(null);
-    try { const response = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, city, keyword, scope }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "The scan could not be completed."); setLeads(data.leads); setMode(data.mode); setNotice(data.notice || ""); setSelectedId(data.leads[0]?.id ?? null); saveScan(data.leads, data.notice || ""); }
+    try {
+      const payload = { state, city, keyword, scope };
+      let response = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      let data = await response.json();
+      if (!response.ok && response.status !== 202) throw new Error(data.error || "The scan could not be completed.");
+      while (data.status === "running") {
+        setNotice(data.notice || "Scanning active ads...");
+        await new Promise((resolve) => window.setTimeout(resolve, 3500));
+        response = await fetch("/api/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, runId: data.runId }) });
+        data = await response.json();
+        if (!response.ok && response.status !== 202) throw new Error(data.error || "The scan could not be completed.");
+      }
+      setLeads(data.leads); setMode(data.mode); setNotice(data.notice || ""); setSelectedId(data.leads[0]?.id ?? null); saveScan(data.leads, data.notice || "");
+    }
     catch (error) { setNotice(error instanceof Error ? error.message : "The scan could not be completed."); }
     finally { setLoading(false); }
   }

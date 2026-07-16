@@ -48,17 +48,30 @@ function sampleLeads(city: string, state: string, keyword: string, scope: Scope)
 
 export async function POST(request: Request) {
   try {
-    const { state = "VA", city = "Fairfax", keyword = "lawyer", scope = "local" } = await request.json() as { state?: string; city?: string; keyword?: string; scope?: Scope };
+    const { state = "VA", city = "Fairfax", keyword = "lawyer", scope = "local", runId } = await request.json() as { state?: string; city?: string; keyword?: string; scope?: Scope; runId?: string };
     const normalizedScope: Scope = scope === "broad" ? "broad" : "local";
     const cleanCity = String(city).trim(); const cleanKeyword = String(keyword || "lawyer").trim();
     if (normalizedScope === "local" && !cleanCity) return NextResponse.json({ error: "Enter a city for a local scan." }, { status: 400 });
     const token = process.env.APIFY_API_TOKEN;
     if (!token) return NextResponse.json({ mode: "sample", leads: sampleLeads(cleanCity, state, cleanKeyword, normalizedScope), notice: "Sample mode is on. Add an Apify API token to run live scans." });
     const searchTerms = normalizedScope === "local" ? `${cleanCity} ${cleanKeyword}` : cleanKeyword;
-    const url = `https://api.apify.com/v2/acts/dltik~facebook-ads-scraper/run-sync-get-dataset-items?token=${encodeURIComponent(token)}&timeout=120`;
-    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms, country: "US", activeStatus: "active", mediaType: "all", maxResults: 25, enrichAds: false, analyzeAds: false, transcribeVideos: false, useResidentialProxy: false }) });
-    if (!response.ok) throw new Error(`Ad provider returned ${response.status}.`);
-    const raw = await response.json() as RawAd[];
+    if (!runId) {
+      const startUrl = `https://api.apify.com/v2/acts/dltik~facebook-ads-scraper/runs?token=${encodeURIComponent(token)}`;
+      const start = await fetch(startUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchTerms, country: "US", activeStatus: "active", mediaType: "all", maxResults: 25, enrichAds: false, analyzeAds: false, transcribeVideos: false, useResidentialProxy: false }) });
+      if (!start.ok) throw new Error(`Ad provider returned ${start.status}.`);
+      const started = await start.json() as { data?: { id?: string } };
+      if (!started.data?.id) throw new Error("The ad provider did not return a scan ID.");
+      return NextResponse.json({ status: "running", runId: started.data.id, notice: "Scan started. Waiting for active-ad results..." }, { status: 202 });
+    }
+    const runResponse = await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(runId)}?token=${encodeURIComponent(token)}`);
+    if (!runResponse.ok) throw new Error(`Could not check the ad scan (${runResponse.status}).`);
+    const run = await runResponse.json() as { data?: { status?: string; defaultDatasetId?: string } };
+    const runStatus = run.data?.status;
+    if (runStatus === "READY" || runStatus === "RUNNING") return NextResponse.json({ status: "running", runId, notice: "Scanning active ads..." }, { status: 202 });
+    if (runStatus !== "SUCCEEDED" || !run.data?.defaultDatasetId) throw new Error(`The ad scan ended with status ${runStatus || "unknown"}.`);
+    const resultsResponse = await fetch(`https://api.apify.com/v2/datasets/${encodeURIComponent(run.data.defaultDatasetId)}/items?token=${encodeURIComponent(token)}`);
+    if (!resultsResponse.ok) throw new Error(`Could not load ad results (${resultsResponse.status}).`);
+    const raw = await resultsResponse.json() as RawAd[];
     const leads = normalize(Array.isArray(raw) ? raw : [], cleanCity, state, cleanKeyword, normalizedScope);
     const notice = normalizedScope === "local"
       ? (leads.length ? `Found ${leads.length} advertisers with explicit ${cleanCity} or ${stateNames[state] || state} evidence. National matches are excluded.` : `No ads showed explicit ${cleanCity} or ${stateNames[state] || state} evidence. That is safer than showing unrelated firms. Try a nearby city, a different practice area, or switch to U.S. broad.`)
